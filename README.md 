@@ -1,0 +1,75 @@
+# ContractIQ 🚀
+
+A production-grade backend system designed using modern enterprise architecture principles.
+
+## 🧠 Overview
+
+ContractIQ is a contract management platform that demonstrates scalable backend design using multiple data stores, caching, and object storage.
+
+---
+
+## 🏗️ Tech Stack
+
+* **Spring Boot** – Backend framework
+* **PostgreSQL** – Primary relational database
+* **MongoDB** – Audit logs & activity tracking
+* **Redis** – Caching layer for performance
+* **MinIO** – Object storage (S3-compatible)
+* **Docker Compose** – Container orchestration
+
+---
+
+## ⚙️ Features Implemented
+
+* Multi-database architecture (SQL + NoSQL)
+* JWT-based authentication
+* Redis caching layer
+* File storage using MinIO
+* Audit logging system
+
+---
+
+## 🐳 Infrastructure Setup
+
+Run all services using Docker:
+
+```bash
+docker-compose up
+```
+
+Services:
+
+* PostgreSQL → localhost:5432
+* MongoDB → localhost:27017
+* Redis → localhost:6379
+* MinIO → localhost:9000
+
+---
+
+## 🔐 Authentication
+
+* JWT-based stateless authentication
+* Token expiration: 24 hours
+
+---
+
+## 📦 Storage Design
+
+* Files stored in MinIO (S3-compatible)
+* Metadata stored in PostgreSQL
+* Logs stored in MongoDB
+
+---
+
+## 🚀 Future Improvements
+
+* Role-based access control (RBAC)
+* Kafka-based event-driven architecture
+* Microservices migration
+* CI/CD pipeline
+
+---
+
+## 🧑‍💻 Author
+
+Akansha Gupta

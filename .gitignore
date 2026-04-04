@@ -1,0 +1,19 @@
+# Java
+target/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+
+# Env
+.env
+
+# Docker volumes (optional)
+postgres_data/
+mongo_data/
+minio_data/
