@@ -2,6 +2,7 @@ package com.contractiq.service;
 
 import com.contractiq.domain.contract.Contract;
 import com.contractiq.domain.contract.ContractStatus;
+import com.contractiq.domain.party.Role;
 import com.contractiq.domain.party.User;
 import com.contractiq.domain.party.UserRepository;
 import com.contractiq.dto.request.CreateContractRequest;
@@ -25,6 +26,11 @@ public class ContractService {
         String email=authentication.getName();
 
         User owner=userRepository.findByEmail(email).orElseThrow(() ->new RuntimeException("User NOT FOUND"));
+
+        if(owner.getRole() != Role.VENDOR && owner.getRole() != Role.ADMIN){
+            throw new RuntimeException("Only VENDOR or ADMIN can create contracts");
+        }
+
         Contract contract =Contract.builder()
                 .title(req.getTitle())
                 .contractType(req.getContractType())

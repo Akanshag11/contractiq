@@ -32,38 +32,38 @@ public class ContractController {
     }
 
     @PostMapping("/{id}/submit")
-    public String submitForReview(@PathVariable UUID id) {
-        contractStateService.moveState(id, ContractEvent.SUBMIT_FOR_REVIEW);
+    public String submitForReview(@PathVariable UUID id, Authentication authentication) {
+        contractStateService.moveState(id, ContractEvent.SUBMIT_FOR_REVIEW,authentication);
         return "Contract submitted for review";
     }
 
     @PostMapping("/{id}/approve")
-    public String approve(@PathVariable UUID id){
-        contractStateService.moveState(id, ContractEvent.APPROVE);
+    public String approve(@PathVariable UUID id, Authentication authentication){
+        contractStateService.moveState(id, ContractEvent.APPROVE, authentication);
         return "Contract submitted for approve";
     }
 
     @PostMapping("/{id}/reject")
-    public String reject(@PathVariable UUID id) {
-        contractStateService.moveState(id, ContractEvent.REJECT);
+    public String reject(@PathVariable UUID id, Authentication authentication) {
+        contractStateService.moveState(id, ContractEvent.REJECT, authentication);
         return "Contract moved back to DRAFT";
     }
 
     @PostMapping("/{id}/sign")
-    public String sign(@PathVariable UUID id) {
-        contractStateService.moveState(id, ContractEvent.SIGN);
+    public String sign(@PathVariable UUID id, Authentication authentication) {
+        contractStateService.moveState(id, ContractEvent.SIGN, authentication);
         return "Contract moved to SIGNED";
     }
 
     @PostMapping("/{id}/activate")
-    public String activate(@PathVariable UUID id) {
-        contractStateService.moveState(id, ContractEvent.ACTIVATE);
+    public String activate(@PathVariable UUID id, Authentication authentication) {
+        contractStateService.moveState(id, ContractEvent.ACTIVATE, authentication);
         return "Contract moved to ACTIVE";
     }
 
     @PostMapping("/{id}/terminate")
-    public String terminate(@PathVariable UUID id) {
-        contractStateService.moveState(id, ContractEvent.TERMINATE);
+    public String terminate(@PathVariable UUID id, Authentication authentication) {
+        contractStateService.moveState(id, ContractEvent.TERMINATE,authentication);
         return "Contract moved to TERMINATED";
     }
 }
