@@ -52,7 +52,7 @@ public class ContractService {
     {
         String email=authentication.getName();
         User owner=userRepository.findByEmail(email).orElseThrow(() ->new RuntimeException("User NOT FOUND"));
-        return contractRepository.findOwnerById(owner.getId()).stream().map(this::mapToResponse).toList();
+        return contractRepository.findByOwnerId(owner.getId()).stream().map(this::mapToResponse).toList();
     }
 
     private ContractResponse mapToResponse(Contract contract)

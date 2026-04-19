@@ -15,12 +15,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class ApprovalContract {
+public class ApprovalController {
     private final ApprovalQueryService approvalQueryService;
 
     @GetMapping("/contracts/{id}/approval-steps")
-    public List<ApprovalStepResponse> getApprovalStepsForContract(@PathVariable UUID id) {
-        return approvalQueryService.getApprovalStepsForContract(id);
+    public List<ApprovalStepResponse> getApprovalStepsForContract(@PathVariable UUID id, Authentication authentication) {
+        return approvalQueryService.getApprovalStepsForContract(id, authentication);
     }
 
     @GetMapping("/approval/my-pending")
