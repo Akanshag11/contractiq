@@ -35,6 +35,10 @@ public class ContractApprovalStep {
     @Column(nullable = false)
     private Integer stepOrder;
 
+    @Builder.Default
+    @Column(name = "approval_round", nullable = false)
+    private Integer approvalRound = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

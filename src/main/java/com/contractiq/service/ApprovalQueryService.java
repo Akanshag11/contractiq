@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +33,7 @@ public class ApprovalQueryService {
         User user= userRepository.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("User not found"));
 
         Contract contract=contractRepository.findById(contractId).orElseThrow(() -> new RuntimeException("Contract not found"));
-        List<ContractApprovalStep> steps = approvalStepRepository.findByContractIdOrderByStepOrderAsc(contractId);
+        List<ContractApprovalStep> steps = getLatestRoundSteps(contractId);
 
         boolean isAdmin = user.getRole() == Role.ADMIN;
         boolean isOwner = contract.getOwner().getId().equals(user.getId());
@@ -50,7 +52,17 @@ public class ApprovalQueryService {
         User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<ContractApprovalStep> steps = approvalStepRepository.findByApproverIdAndStatus(user.getId(), ApprovalStepStatus.PENDING);
+        List<ContractApprovalStep> pendingSteps = approvalStepRepository
+                .findByApproverIdAndStatus(user.getId(), ApprovalStepStatus.PENDING);
+        Map<UUID, Integer> latestRoundByContract = pendingSteps.stream()
+                .map(step -> step.getContract().getId())
+                .distinct()
+                .collect(Collectors.toMap(contractId -> contractId, this::getLatestApprovalRound));
+
+        List<ContractApprovalStep> steps = pendingSteps.stream()
+                .filter(step -> normalizeRound(step.getApprovalRound())
+                        .equals(latestRoundByContract.get(step.getContract().getId())))
+                .toList();
         return mapToApprovalStepResponse(steps);
     }
 
@@ -68,5 +80,28 @@ public class ApprovalQueryService {
                         .actedAt(step.getActedAt())
                         .build())
                 .toList();
+    }
+
+    private List<ContractApprovalStep> getLatestRoundSteps(UUID contractId) {
+        int latestRound = getLatestApprovalRound(contractId);
+        if (latestRound == 0) {
+            return List.of();
+        }
+        return approvalStepRepository.findByContractIdAndApprovalRoundOrderByStepOrderAsc(contractId, latestRound);
+    }
+
+    private Integer getLatestApprovalRound(UUID contractId) {
+        Integer maxRound = approvalStepRepository.findMaxApprovalRoundByContractId(contractId);
+        if (maxRound == null) {
+            return 0;
+        }
+        return maxRound;
+    }
+
+    private Integer normalizeRound(Integer round) {
+        if (round == null) {
+            return 1;
+        }
+        return round;
     }
 }

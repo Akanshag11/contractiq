@@ -7,6 +7,7 @@ import com.contractiq.domain.party.UserRepository;
 import com.contractiq.domain.workflow.ApprovalStepStatus;
 import com.contractiq.domain.workflow.ContractApprovalStep;
 import com.contractiq.repository.ContractApprovalStepRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +17,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ApprovalWorkflowService {
 
     private final UserRepository userRepository;
     private final ContractApprovalStepRepository approvalStepRepository;
     public void createInitialApprovalSteps(Contract contract){
+        int nextRound = getLatestApprovalRound(contract.getId()) + 1;
+
         User legalManager = userRepository.findAll().stream()
                 .filter(user -> user.getRole() == Role.LEGAL_MGR).findFirst().orElseThrow(() -> new RuntimeException("Legal Manager not found"));
 
@@ -35,6 +39,7 @@ public class ApprovalWorkflowService {
                         .contract(contract)
                         .approver(legalManager)
                         .stepOrder(1)
+                        .approvalRound(nextRound)
                         .status(ApprovalStepStatus.PENDING)
                         .build(),
 
@@ -42,6 +47,7 @@ public class ApprovalWorkflowService {
                         contract(contract).
                         approver(finance)
                         .stepOrder(2)
+                        .approvalRound(nextRound)
                         .status(ApprovalStepStatus.PENDING)
                         .build(),
 
@@ -49,6 +55,7 @@ public class ApprovalWorkflowService {
                         .contract(contract)
                         .approver(admin)
                         .stepOrder(3)
+                        .approvalRound(nextRound)
                         .status(ApprovalStepStatus.PENDING)
                         .build()
         );
@@ -59,7 +66,9 @@ public class ApprovalWorkflowService {
 
     public boolean approveCurrentStep(Contract contract, User actor)
     {
-        List<ContractApprovalStep> steps = approvalStepRepository.findByContractIdOrderByStepOrderAsc(contract.getId());
+        int currentRound = getLatestApprovalRound(contract.getId());
+        List<ContractApprovalStep> steps = approvalStepRepository
+                .findByContractIdAndApprovalRoundOrderByStepOrderAsc(contract.getId(), currentRound);
 
         ContractApprovalStep currentStep=steps.stream().filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
                 .findFirst()
@@ -80,9 +89,13 @@ public class ApprovalWorkflowService {
 
     public void rejectCurrentStep(Contract contract, User actor, String remarks)
     {
-        ContractApprovalStep currentStep=approvalStepRepository
-                .findFirstByContractIdAndStatusOrderByStepOrderAsc(
-                        contract.getId(), ApprovalStepStatus.PENDING)
+        int currentRound = getLatestApprovalRound(contract.getId());
+        List<ContractApprovalStep> steps = approvalStepRepository
+                .findByContractIdAndApprovalRoundOrderByStepOrderAsc(contract.getId(), currentRound);
+
+        ContractApprovalStep currentStep=steps.stream()
+                .filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
+                .findFirst()
                 .orElseThrow(() -> new RuntimeException("No pending step found"));
 
         if(!currentStep.getApprover().getId().equals(actor.getId()))
@@ -90,14 +103,33 @@ public class ApprovalWorkflowService {
             throw new RuntimeException("You are not assigned to this approval step");
         }
 
-        currentStep.setStatus(ApprovalStepStatus.REJECTED);
-        currentStep.setRemarks(remarks);
-        currentStep.setActedAt(LocalDateTime.now());
-        approvalStepRepository.save(currentStep);
+        LocalDateTime actedAt = LocalDateTime.now();
+        for (ContractApprovalStep step : steps) {
+            if (step.getStatus() != ApprovalStepStatus.PENDING) {
+                continue;
+            }
+            step.setStatus(ApprovalStepStatus.REJECTED);
+            step.setActedAt(actedAt);
+            if (step.getId().equals(currentStep.getId())) {
+                step.setRemarks(remarks);
+            } else {
+                step.setRemarks("Rejected in the same approval round");
+            }
+        }
+        approvalStepRepository.saveAll(steps);
     }
 
     public List<ContractApprovalStep> getContractApprovalSteps(UUID contractId)
     {
-        return approvalStepRepository.findByContractIdOrderByStepOrderAsc(contractId);
+        int currentRound = getLatestApprovalRound(contractId);
+        return approvalStepRepository.findByContractIdAndApprovalRoundOrderByStepOrderAsc(contractId, currentRound);
+    }
+
+    private int getLatestApprovalRound(UUID contractId) {
+        Integer maxRound = approvalStepRepository.findMaxApprovalRoundByContractId(contractId);
+        if (maxRound == null) {
+            return 0;
+        }
+        return maxRound;
     }
 }
