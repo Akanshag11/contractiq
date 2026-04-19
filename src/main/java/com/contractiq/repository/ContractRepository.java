@@ -15,10 +15,12 @@ public interface ContractRepository extends JpaRepository<Contract, UUID> {
     @EntityGraph(attributePaths = {"owner"})
     java.util.Optional<Contract> findById(UUID id);
 
+    @EntityGraph(attributePaths = {"owner"})
     List<Contract> findByOwnerId(UUID ownerId);
 
     List<Contract> findByStatus(ContractStatus status);
 
+    @EntityGraph(attributePaths = {"owner"})
     List<Contract> findByOwnerIdAndStatus(UUID ownerId,ContractStatus status);
 
 

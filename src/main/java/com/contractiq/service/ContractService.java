@@ -11,17 +11,19 @@ import com.contractiq.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.net.Authenticator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ContractService {
 
     private final ContractRepository contractRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public ContractResponse createContract(CreateContractRequest req, Authentication authentication){
         String email=authentication.getName();
 
