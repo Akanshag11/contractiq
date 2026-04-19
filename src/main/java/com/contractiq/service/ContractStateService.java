@@ -8,7 +8,6 @@ import com.contractiq.domain.party.User;
 import com.contractiq.domain.party.UserRepository;
 import com.contractiq.exception.InvalidContractStateException;
 import com.contractiq.repository.ContractRepository;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.support.MessageBuilder;
@@ -35,11 +34,16 @@ public class ContractStateService {
         validateRoleAccess(contract,event,actor);
 
         if (event == ContractEvent.APPROVE) {
-            approvalWorkflowService.approveCurrentStep(contract, actor);
+            boolean allApproved=approvalWorkflowService.approveCurrentStep(contract, actor);
+            if(!allApproved){
+                return contract;
+            }
+            contract.setStatus(ContractStatus.APPROVED);
+            return contractRepository.save(contract);
         }
 
         if (event == ContractEvent.REJECT) {
-            approvalWorkflowService.rejectCurrentStep(contract, actor, "Rejected by legal manager");
+            approvalWorkflowService.rejectCurrentStep(contract, actor, "Rejected by approver");
         }
 
         StateMachine<ContractStatus,ContractEvent> stateMachine = stateMachineFactory.getStateMachine();
@@ -87,8 +91,8 @@ public class ContractStateService {
             }
 
             case APPROVE,REJECT -> {
-                if(role!=Role.LEGAL_MGR) {
-                    throw new InvalidContractStateException("Only LEGAL_MGR authorized to approve OR REJECT contract.");
+                if(role == Role.VENDOR) {
+                    throw new InvalidContractStateException("Vendor cannot approve or reject contracts");
                 }
             }
 

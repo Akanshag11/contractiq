@@ -24,21 +24,45 @@ public class ApprovalWorkflowService {
         User legalManager = userRepository.findAll().stream()
                 .filter(user -> user.getRole() == Role.LEGAL_MGR).findFirst().orElseThrow(() -> new RuntimeException("Legal Manager not found"));
 
-        ContractApprovalStep step=ContractApprovalStep.builder()
-                .contract(contract)
-                .approver(legalManager)
-                .stepOrder(1)
-                .status(ApprovalStepStatus.PENDING)
-                .build();
+        User finance = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.FINANCE).findFirst().orElseThrow(() -> new RuntimeException("Finance not found"));
 
-        approvalStepRepository.save(step);
+        User admin = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN).findFirst().orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        List<ContractApprovalStep> steps =List.of(
+                ContractApprovalStep.builder()
+                        .contract(contract)
+                        .approver(legalManager)
+                        .stepOrder(1)
+                        .status(ApprovalStepStatus.PENDING)
+                        .build(),
+
+                ContractApprovalStep.builder().
+                        contract(contract).
+                        approver(finance)
+                        .stepOrder(2)
+                        .status(ApprovalStepStatus.PENDING)
+                        .build(),
+
+                ContractApprovalStep.builder()
+                        .contract(contract)
+                        .approver(admin)
+                        .stepOrder(3)
+                        .status(ApprovalStepStatus.PENDING)
+                        .build()
+        );
+
+
+        approvalStepRepository.saveAll(steps);
     }
 
-    public void approveCurrentStep(Contract contract, User actor)
+    public boolean approveCurrentStep(Contract contract, User actor)
     {
-        ContractApprovalStep currentStep=approvalStepRepository
-                .findFirstByContractIdAndStatusOrderByStepOrderAsc(
-                        contract.getId(), ApprovalStepStatus.PENDING)
+        List<ContractApprovalStep> steps = approvalStepRepository.findByContractIdOrderByStepOrderAsc(contract.getId());
+
+        ContractApprovalStep currentStep=steps.stream().filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
+                .findFirst()
                 .orElseThrow(() -> new RuntimeException("No pending step found"));
 
         if(!currentStep.getApprover().getId().equals(actor.getId()))
@@ -49,6 +73,9 @@ public class ApprovalWorkflowService {
         currentStep.setStatus(ApprovalStepStatus.APPROVED);
         currentStep.setActedAt(LocalDateTime.now());
         approvalStepRepository.save(currentStep);
+
+        boolean allApproved = steps.stream().allMatch(step -> step.getStatus() == ApprovalStepStatus.APPROVED);
+        return allApproved;
     }
 
     public void rejectCurrentStep(Contract contract, User actor, String remarks)

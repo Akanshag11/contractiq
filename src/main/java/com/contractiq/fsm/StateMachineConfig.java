@@ -20,13 +20,14 @@ public class StateMachineConfig extends EnumStateMachineConfigurerAdapter<Contra
         states.withStates().initial(ContractStatus.DRAFT).states(EnumSet.allOf(ContractStatus.class));
     }
 
+    @Override
     public void configure(StateMachineTransitionConfigurer<ContractStatus, ContractEvent> transitions) throws Exception
     {
          transitions.withExternal().source(ContractStatus.DRAFT).target(ContractStatus.UNDER_REVIEW).event(ContractEvent.SUBMIT_FOR_REVIEW)
                  .and()
-                 .withExternal().source(ContractStatus.UNDER_REVIEW).target(ContractStatus.APPROVED).event(ContractEvent.APPROVE)
+                 .withExternal().source(ContractStatus.UNDER_REVIEW).target(ContractStatus.DRAFT).event(ContractEvent.REJECT)
                  .and()
-                 .withExternal().source(ContractStatus.APPROVED).target(ContractStatus.SIGNED).event(ContractEvent.ACTIVATE).event(ContractEvent.SIGN)
+                 .withExternal().source(ContractStatus.APPROVED).target(ContractStatus.SIGNED).event(ContractEvent.SIGN)
                  .and()
                  .withExternal().source(ContractStatus.SIGNED).target(ContractStatus.ACTIVE).event(ContractEvent.ACTIVATE)
                  .and()
