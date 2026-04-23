@@ -1,6 +1,7 @@
 package com.contractiq.controller;
 
 import com.contractiq.dto.response.ApprovalStepResponse;
+import com.contractiq.dto.response.CurrentApprovalStepResponse;
 import com.contractiq.service.ApprovalQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -26,5 +27,11 @@ public class ApprovalController {
     @GetMapping("/approval/my-pending")
     public List<ApprovalStepResponse> getMyPendingApprovals(Authentication authentication) {
         return approvalQueryService.getMyPendingApprovals(authentication);
+    }
+
+    @GetMapping("/contracts/{id}/current-step")
+    public CurrentApprovalStepResponse getCurrentApprovalStep(@PathVariable UUID id,
+                                                              Authentication authentication) {
+        return approvalQueryService.getCurrentApprovalStep(id, authentication);
     }
 }

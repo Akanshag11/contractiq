@@ -7,6 +7,7 @@ import com.contractiq.domain.party.UserRepository;
 import com.contractiq.domain.workflow.ApprovalStepStatus;
 import com.contractiq.domain.workflow.ContractApprovalStep;
 import com.contractiq.dto.response.ApprovalStepResponse;
+import com.contractiq.dto.response.CurrentApprovalStepResponse;
 import com.contractiq.repository.ContractApprovalStepRepository;
 import com.contractiq.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,38 @@ public class ApprovalQueryService {
                         .equals(latestRoundByContract.get(step.getContract().getId())))
                 .toList();
         return mapToApprovalStepResponse(steps);
+    }
+
+    public CurrentApprovalStepResponse getCurrentApprovalStep(UUID contractId,Authentication authentication) {
+        User user = userRepository.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("user not found"));
+        Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new RuntimeException("contract not found"));
+        Integer currentRound = getLatestApprovalRound(contractId);
+        if (currentRound == 0) {
+            throw new RuntimeException("No approval steps found for contract");
+        }
+
+        List<ContractApprovalStep> steps = approvalStepRepository.findByContractIdAndApprovalRoundOrderByStepOrderAsc(contractId, currentRound);
+        boolean isAdmin = user.getRole() == Role.ADMIN;
+        boolean isOwner = contract.getOwner().getId().equals(user.getId());
+        boolean isApprover = steps.stream().anyMatch(step -> step.getApprover().getId().equals(user.getId()));
+
+        if (!isAdmin && !isOwner && !isApprover) {
+            throw new RuntimeException("You are not allowed to view current approval steps for this contract");
+        }
+
+        ContractApprovalStep currentStep = steps.stream().filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No pending approval steps found for contract"));
+
+        return CurrentApprovalStepResponse.builder()
+                .contractId(contract.getId())
+                .contractTitle(contract.getTitle())
+                .approvalRound(currentRound)
+                .stepOrder(currentStep.getStepOrder())
+                .approverEmail(currentStep.getApprover().getEmail())
+                .approverRole(currentStep.getApprover().getRole().name())
+                .status(currentStep.getStatus())
+                .build();
     }
 
     private List<ApprovalStepResponse> mapToApprovalStepResponse(List<ContractApprovalStep> steps) {

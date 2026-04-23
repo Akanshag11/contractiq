@@ -42,4 +42,18 @@ public interface ContractApprovalStepRepository extends JpaRepository<ContractAp
             where s.contract.id = :contractId
             """)
     Integer findMaxApprovalRoundByContractId(@Param("contractId") UUID contractId);
+
+    @EntityGraph(attributePaths = {"contract", "approver"})
+    @Query("""
+        select s
+        from ContractApprovalStep s
+        where s.contract.id = :contractId
+          and coalesce(s.approvalRound, 1) = :approvalRound
+          and s.status = com.contractiq.domain.workflow.ApprovalStepStatus.PENDING
+        order by s.stepOrder asc
+        """)
+    List<ContractApprovalStep> findPendingStepsByContractIdAndApprovalRound(
+            @Param("contractId") UUID contractId,
+            @Param("approvalRound") Integer approvalRound
+    );
 }
