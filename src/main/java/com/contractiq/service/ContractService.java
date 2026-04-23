@@ -22,6 +22,7 @@ public class ContractService {
 
     private final ContractRepository contractRepository;
     private final UserRepository userRepository;
+    private final ContractAuditService contractAuditService;
 
     @Transactional
     public ContractResponse createContract(CreateContractRequest req, Authentication authentication){
@@ -46,6 +47,17 @@ public class ContractService {
                 .build();
 
         Contract saved=contractRepository.save(contract);
+        contractAuditService.log(
+                saved.getId().toString(),
+                "CONTRACT_CREATED",
+                owner.getEmail(),
+                owner.getRole().name(),
+                null,
+                saved.getStatus().name(),
+                "Contract created",
+                null,
+                null
+        );
         return mapToResponse(saved);
 
     }

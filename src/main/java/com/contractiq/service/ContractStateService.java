@@ -26,10 +26,12 @@ public class ContractStateService {
     private final StateMachineFactory stateMachineFactory;
     private final UserRepository userRepository;
     private final ApprovalWorkflowService approvalWorkflowService;
+    private final ContractAuditService contractAuditService;
 
     @Transactional
     public Contract moveState(UUID contractId, ContractEvent event, Authentication authentication){
         Contract contract=contractRepository.findById(contractId).orElseThrow(() -> new RuntimeException("Contract not found"));
+        String oldStatus = contract.getStatus().name();
         User actor= userRepository.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("User not found"));
         validateRoleAccess(contract,event,actor);
 
@@ -39,7 +41,21 @@ public class ContractStateService {
                 return contract;
             }
             contract.setStatus(ContractStatus.APPROVED);
-            return contractRepository.save(contract);
+            Contract saved = contractRepository.save(contract);
+
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_APPROVED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "All approval steps completed",
+                    null,
+                    null
+            );
+
+            return saved;
         }
 
         if (event == ContractEvent.REJECT) {
@@ -71,6 +87,72 @@ public class ContractStateService {
         if(event== ContractEvent.SUBMIT_FOR_REVIEW)
         {
             approvalWorkflowService.createInitialApprovalSteps(saved);
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_SUBMITTED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "Contract submitted for review",
+                    null,
+                    null
+            );
+        }
+        if (event == ContractEvent.REJECT) {
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_REJECTED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "Contract rejected in approval workflow",
+                    null,
+                    null
+            );
+        }
+
+        if (event == ContractEvent.SIGN) {
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_SIGNED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "Contract signed",
+                    null,
+                    null
+            );
+        }
+
+        if (event == ContractEvent.ACTIVATE) {
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_ACTIVATED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "Contract activated",
+                    null,
+                    null
+            );
+        }
+
+        if (event == ContractEvent.TERMINATE) {
+            contractAuditService.log(
+                    saved.getId().toString(),
+                    "CONTRACT_TERMINATED",
+                    actor.getEmail(),
+                    actor.getRole().name(),
+                    oldStatus,
+                    saved.getStatus().name(),
+                    "Contract terminated",
+                    null,
+                    null
+            );
         }
         return saved;
     }

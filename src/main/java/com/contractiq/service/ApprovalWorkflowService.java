@@ -22,6 +22,7 @@ public class ApprovalWorkflowService {
 
     private final UserRepository userRepository;
     private final ContractApprovalStepRepository approvalStepRepository;
+    private final ContractAuditService contractAuditService;
     public void createInitialApprovalSteps(Contract contract){
         int nextRound = getLatestApprovalRound(contract.getId()) + 1;
 
@@ -82,6 +83,17 @@ public class ApprovalWorkflowService {
         currentStep.setStatus(ApprovalStepStatus.APPROVED);
         currentStep.setActedAt(LocalDateTime.now());
         approvalStepRepository.save(currentStep);
+        contractAuditService.log(
+                contract.getId().toString(),
+                "APPROVAL_STEP_APPROVED",
+                actor.getEmail(),
+                actor.getRole().name(),
+                contract.getStatus().name(),
+                contract.getStatus().name(),
+                "Approval step approved",
+                currentRound,
+                currentStep.getStepOrder()
+        );
 
         boolean allApproved = steps.stream().allMatch(step -> step.getStatus() == ApprovalStepStatus.APPROVED);
         return allApproved;
@@ -116,6 +128,17 @@ public class ApprovalWorkflowService {
                 step.setRemarks("Rejected in the same approval round");
             }
         }
+        contractAuditService.log(
+                contract.getId().toString(),
+                "APPROVAL_STEP_REJECTED",
+                actor.getEmail(),
+                actor.getRole().name(),
+                contract.getStatus().name(),
+                contract.getStatus().name(),
+                remarks,
+                currentRound,
+                currentStep.getStepOrder()
+        );
         approvalStepRepository.saveAll(steps);
     }
 
