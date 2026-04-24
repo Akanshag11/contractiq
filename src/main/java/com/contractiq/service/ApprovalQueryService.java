@@ -84,9 +84,25 @@ public class ApprovalQueryService {
             throw new RuntimeException("You are not allowed to view current approval steps for this contract");
         }
 
-        ContractApprovalStep currentStep = steps.stream().filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
+        ContractApprovalStep currentStep = steps.stream()
+                .filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("No pending approval steps found for contract"));
+                .orElse(null);
+
+        if (currentStep == null) {
+            return CurrentApprovalStepResponse.builder()
+                    .contractId(contract.getId())
+                    .contractTitle(contract.getTitle())
+                    .approvalRound(currentRound)
+                    .stepOrder(null)
+                    .approverEmail(null)
+                    .approverRole(null)
+                    .status(null)
+                    .completed(true)
+                    .message("All approval steps completed")
+                    .contractStatus(contract.getStatus().name())
+                    .build();
+        }
 
         return CurrentApprovalStepResponse.builder()
                 .contractId(contract.getId())
@@ -96,6 +112,9 @@ public class ApprovalQueryService {
                 .approverEmail(currentStep.getApprover().getEmail())
                 .approverRole(currentStep.getApprover().getRole().name())
                 .status(currentStep.getStatus())
+                .completed(false)
+                .message("Current approval step found")
+                .contractStatus(contract.getStatus().name())
                 .build();
     }
 

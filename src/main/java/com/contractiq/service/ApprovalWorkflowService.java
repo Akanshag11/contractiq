@@ -6,6 +6,7 @@ import com.contractiq.domain.party.User;
 import com.contractiq.domain.party.UserRepository;
 import com.contractiq.domain.workflow.ApprovalStepStatus;
 import com.contractiq.domain.workflow.ContractApprovalStep;
+import com.contractiq.dto.notification.NotificationMessage;
 import com.contractiq.repository.ContractApprovalStepRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,8 @@ public class ApprovalWorkflowService {
     private final UserRepository userRepository;
     private final ContractApprovalStepRepository approvalStepRepository;
     private final ContractAuditService contractAuditService;
+    private final NotificationService notificationService;
+
     public void createInitialApprovalSteps(Contract contract){
         int nextRound = getLatestApprovalRound(contract.getId()) + 1;
 
@@ -63,6 +66,19 @@ public class ApprovalWorkflowService {
 
 
         approvalStepRepository.saveAll(steps);
+
+        ContractApprovalStep firstStep = steps.stream()
+                .filter(step -> step.getStepOrder() == 1)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("First approval step not found"));
+
+        notificationService.send(
+                com.contractiq.dto.notification.NotificationMessage.builder()
+                        .toEmail(firstStep.getApprover().getEmail())
+                        .subject("Contract submitted for review")
+                        .body("Contract '" + contract.getTitle() + "' is waiting for your approval.")
+                        .build()
+        );
     }
 
     public boolean approveCurrentStep(Contract contract, User actor)
@@ -83,6 +99,21 @@ public class ApprovalWorkflowService {
         currentStep.setStatus(ApprovalStepStatus.APPROVED);
         currentStep.setActedAt(LocalDateTime.now());
         approvalStepRepository.save(currentStep);
+        ContractApprovalStep nextPendingStep = steps.stream()
+                .filter(step -> step.getStatus() == ApprovalStepStatus.PENDING)
+                .findFirst()
+                .orElse(null);
+
+        if (nextPendingStep != null) {
+            notificationService.send(
+                    NotificationMessage.builder()
+                            .toEmail(nextPendingStep.getApprover().getEmail())
+                            .subject("Contract waiting for your approval")
+                            .body("Contract '" + contract.getTitle() + "' is now waiting for your approval at step "
+                                    + nextPendingStep.getStepOrder() + ".")
+                            .build()
+            );
+        }
         contractAuditService.log(
                 contract.getId().toString(),
                 "APPROVAL_STEP_APPROVED",
@@ -95,7 +126,18 @@ public class ApprovalWorkflowService {
                 currentStep.getStepOrder()
         );
 
+
+
         boolean allApproved = steps.stream().allMatch(step -> step.getStatus() == ApprovalStepStatus.APPROVED);
+        if (allApproved) {
+            notificationService.send(
+              NotificationMessage.builder()
+                            .toEmail(contract.getOwner().getEmail())
+                            .subject("Contract fully approved")
+                            .body("Your contract '" + contract.getTitle() + "' has been fully approved.")
+                            .build()
+            );
+        }
         return allApproved;
     }
 
@@ -140,6 +182,14 @@ public class ApprovalWorkflowService {
                 currentStep.getStepOrder()
         );
         approvalStepRepository.saveAll(steps);
+
+        notificationService.send(
+               NotificationMessage.builder()
+                        .toEmail(contract.getOwner().getEmail())
+                        .subject("Contract rejected")
+                        .body("Your contract '" + contract.getTitle() + "' was rejected. Remarks: " + remarks)
+                        .build()
+        );
     }
 
     public List<ContractApprovalStep> getContractApprovalSteps(UUID contractId)

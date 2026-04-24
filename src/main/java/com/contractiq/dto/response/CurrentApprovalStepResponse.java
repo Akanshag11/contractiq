@@ -16,4 +16,7 @@ public class CurrentApprovalStepResponse {
     private String approverEmail;
     private String approverRole;
     private ApprovalStepStatus status;
+    private boolean completed;
+    private String message;
+    private String contractStatus;
 }
