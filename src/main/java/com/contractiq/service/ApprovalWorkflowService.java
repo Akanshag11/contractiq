@@ -7,6 +7,8 @@ import com.contractiq.domain.party.UserRepository;
 import com.contractiq.domain.workflow.ApprovalStepStatus;
 import com.contractiq.domain.workflow.ContractApprovalStep;
 import com.contractiq.dto.notification.NotificationMessage;
+import com.contractiq.kafka.ContractEventMessage;
+import com.contractiq.kafka.ContractEventProducer;
 import com.contractiq.repository.ContractApprovalStepRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class ApprovalWorkflowService {
     private final ContractApprovalStepRepository approvalStepRepository;
     private final ContractAuditService contractAuditService;
     private final NotificationService notificationService;
+    private final ContractEventProducer eventProducer;
 
     public void createInitialApprovalSteps(Contract contract){
         int nextRound = getLatestApprovalRound(contract.getId()) + 1;
@@ -72,11 +75,12 @@ public class ApprovalWorkflowService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("First approval step not found"));
 
-        notificationService.send(
-                com.contractiq.dto.notification.NotificationMessage.builder()
+        eventProducer.sendEvent(
+                ContractEventMessage.builder()
+                        .type("CONTRACT_SUBMITTED")
+                        .contractId(contract.getId().toString())
                         .toEmail(firstStep.getApprover().getEmail())
-                        .subject("Contract submitted for review")
-                        .body("Contract '" + contract.getTitle() + "' is waiting for your approval.")
+                        .message("Contract '" + contract.getTitle() + "' is waiting for your approval.")
                         .build()
         );
     }
@@ -105,12 +109,12 @@ public class ApprovalWorkflowService {
                 .orElse(null);
 
         if (nextPendingStep != null) {
-            notificationService.send(
-                    NotificationMessage.builder()
+            eventProducer.sendEvent(
+                    ContractEventMessage.builder()
+                            .type("NEXT_APPROVER")
+                            .contractId(contract.getId().toString())
                             .toEmail(nextPendingStep.getApprover().getEmail())
-                            .subject("Contract waiting for your approval")
-                            .body("Contract '" + contract.getTitle() + "' is now waiting for your approval at step "
-                                    + nextPendingStep.getStepOrder() + ".")
+                            .message("Contract '" + contract.getTitle() + "' is waiting for your approval.")
                             .build()
             );
         }
@@ -130,11 +134,12 @@ public class ApprovalWorkflowService {
 
         boolean allApproved = steps.stream().allMatch(step -> step.getStatus() == ApprovalStepStatus.APPROVED);
         if (allApproved) {
-            notificationService.send(
-              NotificationMessage.builder()
+            eventProducer.sendEvent(
+                    ContractEventMessage.builder()
+                            .type("CONTRACT_APPROVED")
+                            .contractId(contract.getId().toString())
                             .toEmail(contract.getOwner().getEmail())
-                            .subject("Contract fully approved")
-                            .body("Your contract '" + contract.getTitle() + "' has been fully approved.")
+                            .message("Your contract '" + contract.getTitle() + "' is fully approved.")
                             .build()
             );
         }
@@ -183,11 +188,12 @@ public class ApprovalWorkflowService {
         );
         approvalStepRepository.saveAll(steps);
 
-        notificationService.send(
-               NotificationMessage.builder()
+        eventProducer.sendEvent(
+                ContractEventMessage.builder()
+                        .type("CONTRACT_REJECTED")
+                        .contractId(contract.getId().toString())
                         .toEmail(contract.getOwner().getEmail())
-                        .subject("Contract rejected")
-                        .body("Your contract '" + contract.getTitle() + "' was rejected. Remarks: " + remarks)
+                        .message("Your contract '" + contract.getTitle() + "' was rejected.")
                         .build()
         );
     }
