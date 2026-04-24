@@ -36,6 +36,8 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.contractiq.kafka"
+    listener:
+      ack-mode: record
 
   batch:
     job:
