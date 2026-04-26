@@ -77,6 +77,7 @@ public class ApprovalWorkflowService {
 
         eventProducer.sendEvent(
                 ContractEventMessage.builder()
+                        .eventId(UUID.randomUUID().toString())
                         .type("CONTRACT_SUBMITTED")
                         .contractId(contract.getId().toString())
                         .toEmail(firstStep.getApprover().getEmail())
@@ -111,6 +112,7 @@ public class ApprovalWorkflowService {
         if (nextPendingStep != null) {
             eventProducer.sendEvent(
                     ContractEventMessage.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .type("NEXT_APPROVER")
                             .contractId(contract.getId().toString())
                             .toEmail(nextPendingStep.getApprover().getEmail())
@@ -136,6 +138,7 @@ public class ApprovalWorkflowService {
         if (allApproved) {
             eventProducer.sendEvent(
                     ContractEventMessage.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .type("CONTRACT_APPROVED")
                             .contractId(contract.getId().toString())
                             .toEmail(contract.getOwner().getEmail())
@@ -190,6 +193,7 @@ public class ApprovalWorkflowService {
 
         eventProducer.sendEvent(
                 ContractEventMessage.builder()
+                        .eventId(UUID.randomUUID().toString())
                         .type("CONTRACT_REJECTED")
                         .contractId(contract.getId().toString())
                         .toEmail(contract.getOwner().getEmail())
