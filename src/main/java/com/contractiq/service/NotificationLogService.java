@@ -36,6 +36,7 @@ public class NotificationLogService {
         LocalDateTime now = LocalDateTime.now();
         NotificationLog log = NotificationLog.builder()
                 .eventId(event.getEventId())
+                .eventVersion(event.getEventVersion())
                 .toEmail(event.getToEmail())
                 .type(event.getType())
                 .contractId(event.getContractId())
@@ -114,6 +115,7 @@ public class NotificationLogService {
                 .map(log -> NotificationResponse.builder()
                         .id(log.getId())
                         .eventId(log.getEventId())
+                        .eventVersion(log.getEventVersion())
                         .toEmail(log.getToEmail())
                         .type(log.getType())
                         .contractId(log.getContractId())
@@ -143,6 +145,7 @@ public class NotificationLogService {
         return NotificationResponse.builder()
                 .id(saved.getId())
                 .eventId(log.getEventId())
+                .eventVersion(log.getEventVersion())
                 .toEmail(saved.getToEmail())
                 .type(saved.getType())
                 .contractId(saved.getContractId())

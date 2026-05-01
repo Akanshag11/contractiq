@@ -20,6 +20,7 @@ public class NotificationLog {
     private String id;
     @Indexed(unique = true, sparse = true)
     private String eventId;
+    private String eventVersion;
     private String toEmail;
     private String type;
     private String contractId;

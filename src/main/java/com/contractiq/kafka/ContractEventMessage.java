@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 public class ContractEventMessage {
     @Indexed(unique = true)
     private String eventId;
+    private String eventVersion;
     private String type;
     private String contractId;
     private String toEmail;

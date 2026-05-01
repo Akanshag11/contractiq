@@ -24,6 +24,7 @@ public class ContractEventConsumer {
 
     @KafkaListener(topics = "contract-events", groupId = "contract-events-group")
     public void consume(ContractEventMessage event) {
+       validateSupportedVersion(event);
         if (!notificationLogService.reserveEvent(event)) {
             return;
         }
@@ -41,6 +42,19 @@ public class ContractEventConsumer {
         } catch (RuntimeException ex) {
             notificationLogService.markFailed(event.getEventId(), ex.getMessage(), maxAttempts, retryDelayMs);
             log.error("Notification delivery failed for event {}", event.getEventId(), ex);
+        }
+    }
+
+    private void validateSupportedVersion(ContractEventMessage event) {
+        String version = event.getEventVersion();
+
+        if (version == null || version.isBlank()) {
+            event.setEventVersion("v1");
+            return;
+        }
+
+        if (!version.equals("v1")) {
+            throw new RuntimeException("Unsupported event version: " + version);
         }
     }
 }

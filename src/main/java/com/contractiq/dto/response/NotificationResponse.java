@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class NotificationResponse {
     private String id;
     private String eventId;
+    private String eventVersion;
     private String toEmail;
     private String type;
     private String contractId;
