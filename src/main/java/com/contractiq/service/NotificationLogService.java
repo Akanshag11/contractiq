@@ -5,31 +5,107 @@ import com.contractiq.dto.response.NotificationResponse;
 import com.contractiq.kafka.ContractEventMessage;
 import com.contractiq.repository.NotificationLogRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationLogService {
 
-    private final NotificationLogRepository notificationLogRepository;
+    private static final String STATUS_PROCESSING = "PROCESSING";
+    private static final String STATUS_SENT = "SENT";
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_DEAD = "DEAD";
 
-    public void saveFromEvent(ContractEventMessage event, String status)
-    {
-        NotificationLog log=NotificationLog.builder()
+    private final NotificationLogRepository notificationLogRepository;
+    private final MongoTemplate mongoTemplate;
+
+    public boolean reserveEvent(ContractEventMessage event) {
+        LocalDateTime now = LocalDateTime.now();
+        NotificationLog log = NotificationLog.builder()
                 .eventId(event.getEventId())
                 .toEmail(event.getToEmail())
                 .type(event.getType())
                 .contractId(event.getContractId())
                 .message(event.getMessage())
-                .status(status)
-                .createdAt(LocalDateTime.now())
+                .status(STATUS_PROCESSING)
+                .attemptCount(1)
+                .lastAttemptAt(now)
+                .createdAt(now)
                 .build();
 
+        try {
+            notificationLogRepository.save(log);
+            return true;
+        } catch (DuplicateKeyException ex) {
+            return false;
+        }
+    }
+
+    public void markSent(String eventId) {
+        NotificationLog log = notificationLogRepository.findByEventId(eventId)
+                .orElseThrow(() -> new RuntimeException("Notification event not found"));
+        log.setStatus(STATUS_SENT);
+        log.setFailureReason(null);
+        log.setNextRetryAt(null);
         notificationLogRepository.save(log);
+    }
+
+    public void markFailed(String eventId, String failureReason, int maxAttempts, long retryDelayMs) {
+        NotificationLog log = notificationLogRepository.findByEventId(eventId)
+                .orElseThrow(() -> new RuntimeException("Notification event not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+        log.setLastAttemptAt(now);
+        log.setFailureReason(normalizeFailureReason(failureReason));
+
+        if (log.getAttemptCount() >= maxAttempts) {
+            log.setStatus(STATUS_DEAD);
+            log.setNextRetryAt(null);
+        } else {
+            log.setStatus(STATUS_FAILED);
+            log.setNextRetryAt(now.plus(Duration.ofMillis(retryDelayMs)));
+        }
+
+        notificationLogRepository.save(log);
+    }
+
+    public Optional<NotificationLog> claimNextRetry(int maxAttempts) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Query query = new Query();
+        query.addCriteria(Criteria.where("status").is(STATUS_FAILED)
+                .and("attemptCount").lt(maxAttempts)
+                .and("nextRetryAt").lte(now));
+        query.with(Sort.by(Sort.Direction.ASC, "nextRetryAt", "createdAt"));
+
+        Update update = new Update()
+                .set("status", STATUS_PROCESSING)
+                .set("lastAttemptAt", now)
+                .set("failureReason", null)
+                .set("nextRetryAt", null)
+                .inc("attemptCount", 1);
+
+        NotificationLog claimed = mongoTemplate.findAndModify(
+                query,
+                update,
+                FindAndModifyOptions.options().returnNew(true),
+                NotificationLog.class
+        );
+
+        return Optional.ofNullable(claimed);
     }
 
     public List<NotificationResponse> getMyNotifications(Authentication authentication) {
@@ -77,7 +153,11 @@ public class NotificationLogService {
                 .readAt(saved.getReadAt())
                 .build();
     }
-    public boolean isAlreadyProcessed(String eventId) {
-        return notificationLogRepository.existsByEventId(eventId);
+
+    private String normalizeFailureReason(String failureReason) {
+        if (failureReason == null || failureReason.isBlank()) {
+            return "Unknown delivery failure";
+        }
+        return failureReason;
     }
 }
