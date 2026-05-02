@@ -14,7 +14,7 @@ public class ContractExpiryScheduler {
     private final JobLauncher jobLauncher;
     private final Job contractExpiryJob;
 
-    @Scheduled(cron = "0 0 1 * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Kolkata")
     public void runContractExpiryJob() throws Exception {
         jobLauncher.run(contractExpiryJob,new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
