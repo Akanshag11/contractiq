@@ -1,75 +1,486 @@
-# ContractIQ 🚀
+# ContractIQ — Enterprise Contract Lifecycle, Approval, and Governance Platform
 
-A production-grade backend system designed using modern enterprise architecture principles.
+## Overview
 
-## 🧠 Overview
+ContractIQ is a production-style contract management platform built to manage the **full contract lifecycle** from creation through approval, activation, expiry, governance, notifications, and operational intelligence.
 
-ContractIQ is a contract management platform that demonstrates scalable backend design using multiple data stores, caching, and object storage.
+This project goes beyond CRUD by combining:
 
----
-
-## 🏗️ Tech Stack
-
-* **Spring Boot** – Backend framework
-* **PostgreSQL** – Primary relational database
-* **MongoDB** – Audit logs & activity tracking
-* **Redis** – Caching layer for performance
-* **MinIO** – Object storage (S3-compatible)
-* **Docker Compose** – Container orchestration
+* **State Machine–driven lifecycle management**
+* **Multi-step role-based approvals**
+* **Kafka event-driven architecture**
+* **Idempotent notification processing**
+* **Retry orchestration + DLT recovery**
+* **Spring Batch governance automation**
+* **MongoDB audit + notification observability**
+* **Operational governance (reminders + escalation)**
 
 ---
 
-## ⚙️ Features Implemented
+# Core Capabilities
 
-* Multi-database architecture (SQL + NoSQL)
-* JWT-based authentication
-* Redis caching layer
-* File storage using MinIO
-* Audit logging system
+## 1. Contract Lifecycle Management (FSM)
 
----
+Contracts move through controlled state transitions:
 
-## 🐳 Infrastructure Setup
-
-Run all services using Docker:
-
-```bash
-docker-compose up
+```text
+DRAFT
+↓ SUBMIT_FOR_REVIEW
+UNDER_REVIEW
+↓ APPROVAL COMPLETE
+APPROVED
+↓ SIGN
+SIGNED
+↓ ACTIVATE
+ACTIVE
+↓ EXPIRE / TERMINATE
+EXPIRED / TERMINATED
 ```
 
-Services:
+Implemented using:
 
-* PostgreSQL → localhost:5432
-* MongoDB → localhost:27017
-* Redis → localhost:6379
-* MinIO → localhost:9000
-
----
-
-## 🔐 Authentication
-
-* JWT-based stateless authentication
-* Token expiration: 24 hours
+* Spring State Machine
+* Role-based transition guards
+* Audit logging for every state change
 
 ---
 
-## 📦 Storage Design
+## 2. Multi-Step Approval Workflow
 
-* Files stored in MinIO (S3-compatible)
-* Metadata stored in PostgreSQL
-* Logs stored in MongoDB
+Each contract follows sequential approval:
+
+```text
+Vendor → Legal Manager → Finance → Admin
+```
+
+### Features:
+
+* Step ordering
+* Approval rounds
+* Re-submission support after rejection
+* Current approval step API
+* Approval history
+* Contract visibility restricted to:
+
+  * Owner
+  * Assigned approvers
+  * Admin
 
 ---
 
-## 🚀 Future Improvements
+# Security Model
 
-* Role-based access control (RBAC)
-* Kafka-based event-driven architecture
-* Microservices migration
-* CI/CD pipeline
+JWT-based authentication with role enforcement:
+
+## Roles:
+
+* `VENDOR`
+* `LEGAL_MGR`
+* `FINANCE`
+* `ADMIN`
+
+## Examples:
+
+* Vendor → create + submit own contracts
+* Legal/Finance/Admin → approve assigned steps
+* Admin → sign, activate, terminate, batch jobs, DLT recovery
 
 ---
 
-## 🧑‍💻 Author
+# Kafka Event-Driven Notification Architecture
 
-Akansha Gupta
+## Real-time Event Flow
+
+```text
+API Action
+↓
+Service Layer
+↓
+Kafka Producer
+↓
+Kafka Topic (contract-events)
+↓
+Kafka Consumer
+↓
+Notification + MongoDB Logging
+```
+
+## Supported Event Types:
+
+* `CONTRACT_SUBMITTED`
+* `NEXT_APPROVER`
+* `CONTRACT_APPROVED`
+* `CONTRACT_REJECTED`
+* `CONTRACT_EXPIRED`
+* `APPROVAL_REMINDER`
+* `APPROVAL_ESCALATION`
+
+---
+
+# Advanced Kafka Engineering
+
+## Idempotency
+
+Every event contains:
+
+```json
+{
+  "eventId": "UUID",
+  "eventVersion": "v1"
+}
+```
+
+### Guarantees:
+
+* Duplicate-safe processing
+* Unique Mongo event reservation
+* Replay-safe recovery
+* Race-condition protection via unique indexing
+
+---
+
+## Retry + Delivery State Machine
+
+Notification states:
+
+```text
+PROCESSING → SENT
+           → FAILED → RETRY → DEAD
+```
+
+### Features:
+
+* Retry scheduling
+* Attempt tracking
+* Failure reasons
+* Controlled replay
+
+---
+
+## Dead Letter Topic (DLT) Recovery
+
+```text
+Main Topic Failure
+↓
+DLT
+↓
+Admin Reprocessor API
+↓
+Replay to Main Topic
+```
+
+### Endpoint:
+
+```text
+POST /api/dlt/reprocess
+```
+
+---
+
+# Event Versioning
+
+Future-proof schema evolution:
+
+```json
+{
+  "eventVersion": "v1"
+}
+```
+
+### Benefits:
+
+* Backward compatibility
+* Consumer validation
+* Safe schema upgrades
+* Support for future `v2`, `v3`
+
+---
+
+# MongoDB Observability Layer
+
+## Notification Logs
+
+Stores:
+
+* eventId
+* eventVersion
+* delivery status
+* retry count
+* timestamps
+* read/unread state
+
+## Audit Logs
+
+Tracks:
+
+* actor
+* role
+* old/new status
+* action type
+* approval round
+* step order
+* timestamps
+
+---
+
+# Spring Batch Governance Automation
+
+## Contract Expiry Batch
+
+Daily scan:
+
+```text
+ACTIVE + endDate < today
+↓
+EXPIRED
+↓
+Audit
+↓
+Kafka Notification
+```
+
+## Approval Reminder Batch
+
+Daily scan:
+
+```text
+PENDING > 48h
+↓
+Notify current approver
+↓
+Audit
+```
+
+## Approval Escalation Batch
+
+Daily scan:
+
+```text
+PENDING > 5 days
+↓
+Escalate to Admin
+↓
+Audit
+```
+
+---
+
+# Scheduling Strategy
+
+| Job                 | Schedule      |
+| ------------------- | ------------- |
+| Contract Expiry     | Daily 1:00 AM |
+| Approval Reminder   | Daily 9:00 AM |
+| Approval Escalation | Daily 9:30 AM |
+
+---
+
+# Batch APIs (Admin)
+
+```text
+POST /api/batch/contracts/expire
+POST /api/batch/approvals/remind
+POST /api/batch/approvals/escalate
+```
+
+---
+
+# Notification APIs
+
+```text
+GET /api/notifications/my
+GET /api/notifications/unread-count
+PATCH /api/notifications/{id}/read
+```
+
+---
+
+# Approval APIs
+
+```text
+GET /api/contracts/{id}/approval-steps
+GET /api/contracts/{id}/approval/current-step
+GET /api/approval/my-pending
+```
+
+---
+
+# Architectural Highlights
+
+## Real-Time Processing
+
+```text
+REST → Service → Kafka → Consumer
+```
+
+## Batch Processing
+
+```text
+Scheduler → Spring Batch → DB Scan → Kafka
+```
+
+## Governance Automation
+
+```text
+Reminder → Escalation → Admin Visibility
+```
+
+---
+
+# Technical Stack
+
+## Backend
+
+* Java
+* Spring Boot
+* Spring Security
+* JWT
+* Spring State Machine
+* Spring Kafka
+* Spring Batch
+* Spring Scheduling
+
+## Databases
+
+* PostgreSQL → Contracts + approvals
+* MongoDB → Audit + notifications
+* Redis → Ready for caching / future expansion
+
+## Infrastructure
+
+* Kafka
+* Zookeeper
+* Docker
+
+---
+
+# Engineering Patterns Implemented
+
+* Event-Driven Architecture
+* Idempotent Consumers
+* Dead Letter Recovery
+* Retry Orchestration
+* Schema Versioning
+* State Machine
+* Batch Processing
+* Scheduled Governance
+* Audit Trail
+* Operational Observability
+
+---
+
+# Why This Project Stands Out
+
+ContractIQ is not just a contract app.
+
+It demonstrates:
+
+## Backend Engineering
+
+* Distributed messaging
+* Workflow engines
+* Role security
+* Async processing
+
+## Platform Engineering
+
+* Retry infrastructure
+* Recovery systems
+* Governance automation
+* Batch orchestration
+
+## System Design
+
+* Reliability
+* Scalability
+* Evolvability
+* Operational maturity
+
+---
+
+# Future Roadmap
+
+* Admin dashboard APIs
+* SLA breach analytics
+* Real email/SMS integrations
+* WebSocket live notifications
+* Reporting & BI
+* Chunk-based Spring Batch
+* Kafka Schema Registry
+* Multi-tenant support
+
+---
+
+# End-to-End Example
+
+```text
+Vendor creates contract
+↓
+Vendor submits
+↓
+Legal notified
+↓
+Finance notified
+↓
+Admin notified
+↓
+Contract approved
+↓
+Signed
+↓
+Activated
+↓
+Expiry monitored
+↓
+Reminder if stuck
+↓
+Escalation if delayed
+↓
+Audit everything
+```
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+* Java 17+
+* Maven
+* Docker + Docker Compose
+* PostgreSQL
+* MongoDB
+* Kafka + Zookeeper
+
+## Run Infrastructure
+
+```bash
+docker compose up -d
+```
+
+## Run Application
+
+```bash
+./mvnw spring-boot:run
+```
+
+## Default Access
+
+Seed roles/users as configured in your bootstrap data:
+
+* Vendor
+* Legal Manager
+* Finance
+* Admin
+
+---
+
+# Final Note
+
+ContractIQ represents:
+
+```text
+Enterprise Workflow + Event Streaming + Governance Automation
+```
+
+It is intentionally designed to reflect **real-world backend architecture**, not just API development.
