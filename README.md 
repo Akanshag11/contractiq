@@ -1,127 +1,199 @@
-# ContractIQ — Enterprise Contract Lifecycle, Approval, and Governance Platform
+# 🚀 ContractIQ — Enterprise Contract Lifecycle, Approval & Governance Platform
 
-## Overview
-
-ContractIQ is a production-style contract management platform built to manage the **full contract lifecycle** from creation through approval, activation, expiry, governance, notifications, and operational intelligence.
-
-This project goes beyond CRUD by combining:
-
-* **State Machine–driven lifecycle management**
-* **Multi-step role-based approvals**
-* **Kafka event-driven architecture**
-* **Idempotent notification processing**
-* **Retry orchestration + DLT recovery**
-* **Spring Batch governance automation**
-* **MongoDB audit + notification observability**
-* **Operational governance (reminders + escalation)**
+> **ContractIQ** is a production-grade backend platform for managing the full contract lifecycle — from creation and approval to activation, expiry, governance, notifications, and operational intelligence.
 
 ---
 
-# Core Capabilities
+# 📌 What is ContractIQ?
 
-## 1. Contract Lifecycle Management (FSM)
+ContractIQ is not just a CRUD-based contract management app.
 
-Contracts move through controlled state transitions:
+It is designed as an **enterprise workflow orchestration platform** that combines:
+
+## Core Engineering Pillars
+
+* ⚙️ **State Machine–Driven Contract Lifecycle**
+* 👥 **Multi-Step Role-Based Approval Workflow**
+* 📩 **Kafka Event-Driven Notifications**
+* 🛡️ **Idempotent Event Processing**
+* 🔁 **Retry Orchestration + Dead Letter Recovery (DLT)**
+* 📦 **Spring Batch Governance Automation**
+* 📜 **Full Audit Trail + MongoDB Observability**
+* ⏰ **Approval Reminder + Escalation Governance**
+
+---
+
+# 🎯 Business Problem It Solves
+
+Managing enterprise contracts is more than storing documents.
+
+Organizations need:
+
+* Controlled contract approval
+* Role-based review
+* Governance over delays
+* Auditability
+* Expiry automation
+* Failure recovery
+* Notification reliability
+
+### ContractIQ solves this by building:
+
+```text
+Contract Creation
+      ↓
+Approval Workflow
+      ↓
+Notifications
+      ↓
+Governance Automation
+      ↓
+Operational Monitoring
+```
+
+---
+
+# 🏗️ High-Level Architecture
+
+```text
+                +----------------------+
+                |   REST APIs / JWT     |
+                +----------+-----------+
+                           ↓
+                +----------------------+
+                |  Contract Services     |
+                |  FSM + Approval Logic  |
+                +----------+-----------+
+                           ↓
+                +----------------------+
+                |   Kafka Event Bus      |
+                +----------+-----------+
+                           ↓
+         +----------------+----------------+
+         ↓                                 ↓
++-------------------+           +----------------------+
+| Notification Flow |           | Spring Batch Jobs     |
+| Retry + DLT       |           | Expiry / Reminder /   |
+| Mongo Logs        |           | Escalation            |
++-------------------+           +----------------------+
+```
+
+---
+
+# 🔄 Contract Lifecycle (Finite State Machine)
+
+Each contract follows a controlled lifecycle:
 
 ```text
 DRAFT
-↓ SUBMIT_FOR_REVIEW
+  ↓ Submit for Review
 UNDER_REVIEW
-↓ APPROVAL COMPLETE
+  ↓ All approvals completed
 APPROVED
-↓ SIGN
+  ↓ Sign
 SIGNED
-↓ ACTIVATE
+  ↓ Activate
 ACTIVE
-↓ EXPIRE / TERMINATE
+  ↓ Expire / Terminate
 EXPIRED / TERMINATED
 ```
 
-Implemented using:
+### Built With:
 
 * Spring State Machine
-* Role-based transition guards
+* Role-based transition validation
 * Audit logging for every state change
 
 ---
 
-## 2. Multi-Step Approval Workflow
+# 👥 Multi-Step Approval Workflow
 
-Each contract follows sequential approval:
+Every contract passes through structured approval:
 
 ```text
 Vendor → Legal Manager → Finance → Admin
 ```
 
-### Features:
+## Key Features
 
-* Step ordering
-* Approval rounds
-* Re-submission support after rejection
-* Current approval step API
-* Approval history
-* Contract visibility restricted to:
+### ✅ Sequential Approval
 
-  * Owner
-  * Assigned approvers
-  * Admin
+Each approver acts only when their step becomes active.
 
----
+### ✅ Approval Rounds
 
-# Security Model
+Rejected contracts can be edited and re-submitted safely.
 
-JWT-based authentication with role enforcement:
+### ✅ Current Step Tracking
 
-## Roles:
-
-* `VENDOR`
-* `LEGAL_MGR`
-* `FINANCE`
-* `ADMIN`
-
-## Examples:
-
-* Vendor → create + submit own contracts
-* Legal/Finance/Admin → approve assigned steps
-* Admin → sign, activate, terminate, batch jobs, DLT recovery
-
----
-
-# Kafka Event-Driven Notification Architecture
-
-## Real-time Event Flow
+System always knows:
 
 ```text
-API Action
-↓
-Service Layer
-↓
-Kafka Producer
-↓
-Kafka Topic (contract-events)
-↓
-Kafka Consumer
-↓
-Notification + MongoDB Logging
+Who needs to approve right now?
 ```
 
-## Supported Event Types:
+### ✅ Governance Protection
 
-* `CONTRACT_SUBMITTED`
-* `NEXT_APPROVER`
-* `CONTRACT_APPROVED`
-* `CONTRACT_REJECTED`
-* `CONTRACT_EXPIRED`
-* `APPROVAL_REMINDER`
-* `APPROVAL_ESCALATION`
+Contracts cannot bypass approval hierarchy.
 
 ---
 
-# Advanced Kafka Engineering
+# 🔐 Security Model
 
-## Idempotency
+## Supported Roles
 
-Every event contains:
+| Role      | Permissions                         |
+| --------- | ----------------------------------- |
+| VENDOR    | Create + submit own contracts       |
+| LEGAL_MGR | Legal review                        |
+| FINANCE   | Financial review                    |
+| ADMIN     | Final approval, signing, governance |
+
+### Security Stack
+
+* JWT Authentication
+* Spring Security
+* Role-Based Access Control (RBAC)
+
+---
+
+# 📩 Kafka Event-Driven Notification System
+
+ContractIQ uses Kafka for asynchronous communication.
+
+## Event Flow
+
+```text
+User Action
+   ↓
+Service Layer
+   ↓
+Kafka Producer
+   ↓
+Kafka Topic (contract-events)
+   ↓
+Kafka Consumer
+   ↓
+Notification Delivery + Mongo Logging
+```
+
+## Example Events
+
+* CONTRACT_SUBMITTED
+* NEXT_APPROVER
+* CONTRACT_APPROVED
+* CONTRACT_REJECTED
+* CONTRACT_EXPIRED
+* APPROVAL_REMINDER
+* APPROVAL_ESCALATION
+
+---
+
+# 🛡️ Advanced Kafka Engineering
+
+## 1️⃣ Idempotency
+
+Every event includes:
 
 ```json
 {
@@ -130,18 +202,17 @@ Every event contains:
 }
 ```
 
-### Guarantees:
+### Why?
 
-* Duplicate-safe processing
-* Unique Mongo event reservation
-* Replay-safe recovery
-* Race-condition protection via unique indexing
+Prevents:
+
+* Duplicate notifications
+* Duplicate retries
+* Replay corruption
 
 ---
 
-## Retry + Delivery State Machine
-
-Notification states:
+## 2️⃣ Retry Orchestration
 
 ```text
 PROCESSING → SENT
@@ -150,36 +221,30 @@ PROCESSING → SENT
 
 ### Features:
 
-* Retry scheduling
-* Attempt tracking
-* Failure reasons
-* Controlled replay
+* Retry attempts
+* Failure tracking
+* Recovery scheduling
+* Delivery observability
 
 ---
 
-## Dead Letter Topic (DLT) Recovery
+## 3️⃣ Dead Letter Topic (DLT)
 
 ```text
-Main Topic Failure
-↓
-DLT
-↓
-Admin Reprocessor API
-↓
-Replay to Main Topic
+Failure → DLT → Admin Reprocess → Main Topic
 ```
 
 ### Endpoint:
 
-```text
+```http
 POST /api/dlt/reprocess
 ```
 
 ---
 
-# Event Versioning
+# 🧬 Event Versioning
 
-Future-proof schema evolution:
+Supports future schema evolution safely:
 
 ```json
 {
@@ -191,81 +256,76 @@ Future-proof schema evolution:
 
 * Backward compatibility
 * Consumer validation
-* Safe schema upgrades
-* Support for future `v2`, `v3`
+* Safer upgrades
 
 ---
 
-# MongoDB Observability Layer
+# 📜 Audit + Observability Layer
 
-## Notification Logs
+## MongoDB Notification Logs
 
-Stores:
+Tracks:
 
 * eventId
 * eventVersion
 * delivery status
-* retry count
-* timestamps
+* retry attempts
 * read/unread state
+* timestamps
 
-## Audit Logs
+## Contract Audit Logs
 
 Tracks:
 
 * actor
 * role
-* old/new status
-* action type
+* old status
+* new status
+* action
 * approval round
 * step order
-* timestamps
 
 ---
 
-# Spring Batch Governance Automation
+# 📦 Spring Batch Governance Automation
 
-## Contract Expiry Batch
+ContractIQ includes scheduled governance systems.
 
-Daily scan:
+---
+
+## ⏳ Contract Expiry Automation
 
 ```text
 ACTIVE + endDate < today
-↓
+        ↓
 EXPIRED
-↓
-Audit
-↓
-Kafka Notification
-```
-
-## Approval Reminder Batch
-
-Daily scan:
-
-```text
-PENDING > 48h
-↓
-Notify current approver
-↓
-Audit
-```
-
-## Approval Escalation Batch
-
-Daily scan:
-
-```text
-PENDING > 5 days
-↓
-Escalate to Admin
-↓
-Audit
+        ↓
+Audit + Notification
 ```
 
 ---
 
-# Scheduling Strategy
+## 🔔 Approval Reminder Automation
+
+```text
+PENDING > 48h
+      ↓
+Notify current approver
+```
+
+---
+
+## 🚨 Approval Escalation Automation
+
+```text
+PENDING > 5 days
+      ↓
+Escalate to Admin
+```
+
+---
+
+# 🕒 Scheduled Jobs
 
 | Job                 | Schedule      |
 | ------------------- | ------------- |
@@ -275,9 +335,33 @@ Audit
 
 ---
 
-# Batch APIs (Admin)
+# 🌐 Key APIs
 
-```text
+## Contracts
+
+```http
+POST /api/contracts
+POST /api/contracts/{id}/submit
+```
+
+## Approval
+
+```http
+GET /api/contracts/{id}/approval/current-step
+GET /api/approval/my-pending
+```
+
+## Notifications
+
+```http
+GET /api/notifications/my
+GET /api/notifications/unread-count
+PATCH /api/notifications/{id}/read
+```
+
+## Batch (Admin)
+
+```http
 POST /api/batch/contracts/expire
 POST /api/batch/approvals/remind
 POST /api/batch/approvals/escalate
@@ -285,56 +369,13 @@ POST /api/batch/approvals/escalate
 
 ---
 
-# Notification APIs
-
-```text
-GET /api/notifications/my
-GET /api/notifications/unread-count
-PATCH /api/notifications/{id}/read
-```
-
----
-
-# Approval APIs
-
-```text
-GET /api/contracts/{id}/approval-steps
-GET /api/contracts/{id}/approval/current-step
-GET /api/approval/my-pending
-```
-
----
-
-# Architectural Highlights
-
-## Real-Time Processing
-
-```text
-REST → Service → Kafka → Consumer
-```
-
-## Batch Processing
-
-```text
-Scheduler → Spring Batch → DB Scan → Kafka
-```
-
-## Governance Automation
-
-```text
-Reminder → Escalation → Admin Visibility
-```
-
----
-
-# Technical Stack
+# 🧰 Tech Stack
 
 ## Backend
 
 * Java
 * Spring Boot
 * Spring Security
-* JWT
 * Spring State Machine
 * Spring Kafka
 * Spring Batch
@@ -342,9 +383,9 @@ Reminder → Escalation → Admin Visibility
 
 ## Databases
 
-* PostgreSQL → Contracts + approvals
-* MongoDB → Audit + notifications
-* Redis → Ready for caching / future expansion
+* PostgreSQL → Contracts + Approval Data
+* MongoDB → Audit + Notification Logs
+* Redis → Future optimization / caching
 
 ## Infrastructure
 
@@ -354,94 +395,72 @@ Reminder → Escalation → Admin Visibility
 
 ---
 
-# Engineering Patterns Implemented
+# 🏆 Engineering Patterns Demonstrated
 
 * Event-Driven Architecture
-* Idempotent Consumers
-* Dead Letter Recovery
-* Retry Orchestration
+* Distributed Messaging
+* Idempotent Consumer Design
+* Retry + Recovery Systems
+* Dead Letter Processing
 * Schema Versioning
-* State Machine
-* Batch Processing
-* Scheduled Governance
-* Audit Trail
-* Operational Observability
+* Finite State Machines
+* Governance Automation
+* Auditability
 
 ---
 
-# Why This Project Stands Out
+# 🌟 Why This Project Stands Out
 
-ContractIQ is not just a contract app.
-
-It demonstrates:
+ContractIQ demonstrates real-world backend and platform engineering:
 
 ## Backend Engineering
 
-* Distributed messaging
-* Workflow engines
-* Role security
-* Async processing
+* Complex workflow systems
+* Security architecture
+* Approval orchestration
+
+## Distributed Systems
+
+* Kafka
+* DLT
+* Retry systems
+* Event versioning
 
 ## Platform Engineering
 
-* Retry infrastructure
-* Recovery systems
-* Governance automation
-* Batch orchestration
-
-## System Design
-
-* Reliability
-* Scalability
-* Evolvability
-* Operational maturity
+* Spring Batch governance
+* Operational automation
+* Failure recovery
 
 ---
 
-# Future Roadmap
-
-* Admin dashboard APIs
-* SLA breach analytics
-* Real email/SMS integrations
-* WebSocket live notifications
-* Reporting & BI
-* Chunk-based Spring Batch
-* Kafka Schema Registry
-* Multi-tenant support
-
----
-
-# End-to-End Example
+# 🚀 End-to-End Example
 
 ```text
 Vendor creates contract
-↓
+      ↓
 Vendor submits
-↓
-Legal notified
-↓
-Finance notified
-↓
-Admin notified
-↓
-Contract approved
-↓
-Signed
-↓
-Activated
-↓
+      ↓
+Legal review
+      ↓
+Finance review
+      ↓
+Admin approval
+      ↓
+Contract activated
+      ↓
 Expiry monitored
-↓
-Reminder if stuck
-↓
-Escalation if delayed
-↓
-Audit everything
+      ↓
+Reminder if delayed
+      ↓
+Escalation if stuck
+      ↓
+Audit + Observability
 ```
 
 ---
 
-# Getting Started
+# ⚡ Getting Started
 
 ## Prerequisites
 
@@ -464,23 +483,28 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
-## Default Access
+---
 
-Seed roles/users as configured in your bootstrap data:
+# 🔮 Future Roadmap
 
-* Vendor
-* Legal Manager
-* Finance
-* Admin
+* Admin dashboard APIs
+* SLA breach analytics
+* Email/SMS integrations
+* WebSocket live notifications
+* Kafka Schema Registry
+* Chunk Processing
+* Multi-Tenant Support
 
 ---
 
-# Final Note
+# 🏁 Final Note
 
-ContractIQ represents:
+## ContractIQ = Enterprise Workflow + Event Streaming + Governance Automation
 
-```text
-Enterprise Workflow + Event Streaming + Governance Automation
-```
+This project is intentionally engineered to reflect:
 
-It is intentionally designed to reflect **real-world backend architecture**, not just API development.
+### Real-world enterprise backend architecture
+
+Not just CRUD. Not just APIs.
+
+### A scalable, resilient, governance-first platform.
