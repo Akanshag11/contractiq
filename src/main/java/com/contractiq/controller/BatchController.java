@@ -20,6 +20,7 @@ public class BatchController {
     private final JobLauncher jobLauncher;
     private final Job contractExpiryJob;
     private final Job approvalReminderJob;
+    private final Job approvalEscalationJob;
 
     @GetMapping("/contracts/expire")
     public Map<String,Object> runContractExpiryJob() throws Exception{
@@ -48,5 +49,19 @@ public class BatchController {
         );
     }
 
+    @PostMapping("/approvals/escalate")
+    public Map<String, Object> runApprovalEscalationJob() throws Exception {
+
+        jobLauncher.run(
+                approvalEscalationJob,
+                new JobParametersBuilder()
+                        .addLong("runAt", System.currentTimeMillis())
+                        .toJobParameters()
+        );
+
+        return Map.of(
+                "message", "Approval escalation batch job triggered"
+        );
+    }
 
 }
